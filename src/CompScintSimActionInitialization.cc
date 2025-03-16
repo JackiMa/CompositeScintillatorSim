@@ -56,9 +56,15 @@ void CompScintSimActionInitialization::Build() const
   CompScintSimDetectorConstruction* detectorConstruction = new CompScintSimDetectorConstruction();
   CompScintSimPrimaryGeneratorAction* primary = new CompScintSimPrimaryGeneratorAction(detectorConstruction);
   SetUserAction(primary);
-  SetUserAction(new CompScintSimRunAction(primary));
-  CompScintSimEventAction* event = new CompScintSimEventAction();
+  
+  // 创建RunAction并存储指针，以便传递给EventAction
+  CompScintSimRunAction* runAction = new CompScintSimRunAction(primary);
+  SetUserAction(runAction);
+  
+  // 创建EventAction，并传入RunAction指针
+  CompScintSimEventAction* event = new CompScintSimEventAction(runAction);
   SetUserAction(event);
+  
   SetUserAction(new CompScintSimSteppingAction(event));
   SetUserAction(new MyTrackingAction());
   SetUserAction(new CompScintSimStackingAction());

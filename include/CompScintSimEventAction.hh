@@ -39,12 +39,14 @@
 
 #include <set>
 
+class CompScintSimRunAction;
+
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 
 class CompScintSimEventAction : public G4UserEventAction
 {
  public:
-  CompScintSimEventAction();
+  CompScintSimEventAction(CompScintSimRunAction* runAction = nullptr);
   ~CompScintSimEventAction();
 
   void BeginOfEventAction(const G4Event*) override;
@@ -68,6 +70,8 @@ class CompScintSimEventAction : public G4UserEventAction
   G4int fEdepInCrystal = -1;
   G4int fEngPassingSD1 = -1;
 
+ private:
+  CompScintSimRunAction* fRunAction; // RunAction引用，用于访问累加器
 };
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 #endif

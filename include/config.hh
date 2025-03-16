@@ -18,7 +18,7 @@
 inline G4OpticalSurface *g_surf_Teflon = MyMaterials::surf_Teflon();
 
 // switch
-inline G4bool g_has_opticalPhysics = true;  // 是否模拟光学过程
+inline G4bool g_has_opticalPhysics = false;  // 是否模拟光学过程
 inline G4bool g_has_cherenkov = true;       // 是否考虑切伦科夫光
 
 // world

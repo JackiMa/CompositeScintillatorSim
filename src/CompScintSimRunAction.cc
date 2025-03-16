@@ -43,6 +43,7 @@
 
 #include "G4AnalysisManager.hh"
 #include "G4AccumulableManager.hh"
+#include "G4SDManager.hh"
 
 // 添加ROOT头文件
 #include "tools/wroot/file"
@@ -76,12 +77,26 @@ CompScintSimRunAction::CompScintSimRunAction(CompScintSimPrimaryGeneratorAction 
   analysisManager->CreateNtupleDColumn("gamma"); // id = 2
   analysisManager->FinishNtuple();
 
+  // 获取层信息并初始化累加器向量
   ScintillatorLayerManager& layerManager = ScintillatorLayerManager::GetInstance();
   if (!layerManager.IsInitialized())
   {
     layerManager.Initialize(g_ScintillatorGeometry);
   }
   std::vector<G4int> id_lists = layerManager.GetCopynumbers();
+  
+  // 初始化累加器向量
+  // 注意：这里假设copynumbers是连续的，如果不连续，需要调整逻辑
+  G4int maxCopyNo = 0;
+  for (const auto& id : id_lists) {
+    if (id > maxCopyNo) maxCopyNo = id;
+  }
+  
+  // 初始化累加器向量大小为maxCopyNo+1（因为copynumber从0开始）
+  fEnergyDeposit.resize(maxCopyNo + 1, G4Accumulable<G4double>(0.));
+  fPassingEnergy.resize(maxCopyNo + 1, G4Accumulable<G4double>(0.));
+  
+  // 为每一层创建Ntuple和直方图
   for (const auto& id : id_lists)
   {
     // 为每一层创建Ntuple和直方图，使用简单的命名，不包含斜杠
@@ -112,6 +127,22 @@ CompScintSimRunAction::~CompScintSimRunAction() {
 }
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
+// 添加能量沉积累加方法
+void CompScintSimRunAction::AddEnergyDeposit(G4int layerID, G4double edep) {
+  if (layerID >= 0 && layerID < (G4int)fEnergyDeposit.size()) {
+    fEnergyDeposit[layerID] += edep;
+  }
+}
+
+//....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
+// 添加穿透能量累加方法
+void CompScintSimRunAction::AddPassingEnergy(G4int layerID, G4double energy) {
+  if (layerID >= 0 && layerID < (G4int)fPassingEnergy.size()) {
+    fPassingEnergy[layerID] += energy;
+  }
+}
+
+//....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 G4Run *CompScintSimRunAction::GenerateRun()
 {
   fRun = new CompScintSimRun();
@@ -121,6 +152,23 @@ G4Run *CompScintSimRunAction::GenerateRun()
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 void CompScintSimRunAction::BeginOfRunAction(const G4Run *)
 {
+  // 注册所有累加器
+  G4AccumulableManager* accumulableManager = G4AccumulableManager::Instance();
+  // 需要单独注册每个累加器
+  for (size_t i = 0; i < fEnergyDeposit.size(); i++) {
+    accumulableManager->RegisterAccumulable(fEnergyDeposit[i]);
+    accumulableManager->RegisterAccumulable(fPassingEnergy[i]);
+  }
+  
+  // 重置所有累加器
+  accumulableManager->Reset();
+  
+  // 设置初始值
+  for (size_t i = 0; i < fEnergyDeposit.size(); i++) {
+    fEnergyDeposit[i] = 0.;
+    fPassingEnergy[i] = 0.;
+  }
+  
   if (fPrimary)
   {
     G4double energy;
@@ -165,11 +213,12 @@ void CompScintSimRunAction::BeginOfRunAction(const G4Run *)
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 void CompScintSimRunAction::EndOfRunAction(const G4Run* run)
 {
-  // G4int nofEvents = run->GetNumberOfEvent();
-  // if (nofEvents == 0) return;
-
   G4int runID = run->GetRunID();
   G4cout << "Run " << runID << " ended." << G4endl;
+
+  // 合并所有线程的累加器
+  G4AccumulableManager* accumulableManager = G4AccumulableManager::Instance();
+  accumulableManager->Merge();
 
   // Get analysis manager
   auto analysisManager = G4AnalysisManager::Instance();
@@ -207,19 +256,18 @@ void CompScintSimRunAction::EndOfRunAction(const G4Run* run)
     for (size_t i = 0; i < copynumbers.size(); i++) {
       G4int copyNo = copynumbers[i];
       
-      // 这里我们简化处理，不从ntuple中读取数据
-      // 假设沉积能量和穿透能量已经在其他地方处理
-      G4double energyDeposit = 0.0; // 这里需要根据实际情况获取
-      G4double passingEnergy = 0.0; // 这里需要根据实际情况获取
+      // 使用累加器获取能量数据
+      G4double energyDeposit = fEnergyDeposit[copyNo].GetValue();
+      G4double passingEnergy = fPassingEnergy[copyNo].GetValue();
       
       // 获取该层的光子统计信息
-      // 根据层号计算相应的直方图索引
-      G4int scintHistoId = i * 4;     // 闪烁光直方图ID
-      G4int cherenkovHistoId = i * 4 + 1; // 切伦科夫光直方图ID 
-      G4int fiberNAHistoId = i * 4 + 2;  // 进入NA的光子直方图ID
-      G4int fiberEntryHistoId = i * 4 + 3; // 进入光纤的光子直方图ID
+      G4String layerPrefix = "Layer_" + std::to_string(copyNo) + "_";
+      G4int scintHistoId = analysisManager->GetH1Id(layerPrefix + "Scint");
+      G4int cherenkovHistoId = analysisManager->GetH1Id(layerPrefix + "Chrnkv");
+      G4int fiberNAHistoId = analysisManager->GetH1Id(layerPrefix + "FiberNA");
+      G4int fiberEntryHistoId = analysisManager->GetH1Id(layerPrefix + "FiberEntry");
       
-      // 获取计数 - 使用entries()方法而不是GetEntries()
+      // 获取计数
       G4int scintillationPhotonCount = analysisManager->GetH1(scintHistoId)->entries();
       G4int cherenkovPhotonCount = analysisManager->GetH1(cherenkovHistoId)->entries();
       G4int fiberNAPhotonCount = analysisManager->GetH1(fiberNAHistoId)->entries();
@@ -244,6 +292,8 @@ void CompScintSimRunAction::EndOfRunAction(const G4Run* run)
 
     // 关闭文件
     outFile.close();
+    
+    G4cout << "Simulation results written to CSV file: " << fileName << G4endl;
   }
   
   analysisManager->Write();

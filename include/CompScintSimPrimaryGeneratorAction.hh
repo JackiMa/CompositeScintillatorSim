@@ -40,9 +40,23 @@
 #include "CompScintSimDetectorConstruction.hh"
 #include <random>
 #include "G4GeneralParticleSource.hh"
+#include "G4ThreeVector.hh"
+#include <vector>
+#include <string>
 
 class G4Event;
 class CompScintSimPrimaryGeneratorMessenger;
+
+// 定义粒子源结构体
+struct MyGPSSource {
+    G4int id;              // 源的唯一标识符
+    G4String particleType;  // 粒子类型
+    G4double energy;        // 粒子能量 (单位：MeV)
+    G4int count;            // 粒子数量
+
+    MyGPSSource(G4int sourceId, const G4String& type, G4double e, G4int c)
+        : id(sourceId), particleType(type), energy(e), count(c) {}
+};
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 
@@ -54,7 +68,6 @@ class CompScintSimPrimaryGeneratorAction : public G4VUserPrimaryGeneratorAction
 
   void GeneratePrimaries(G4Event*) override;
 
-
   void InitializeProjectionArea();
   bool isInitialized = false;
 
@@ -65,6 +78,11 @@ class CompScintSimPrimaryGeneratorAction : public G4VUserPrimaryGeneratorAction
   void SetUseParticleGun(G4bool useGun);
   G4bool GetUseParticleGun() { return useParticleGun; }
 
+  // 添加GPS源管理方法
+  void AddGPSSource(const G4String& particleType, G4double energy, G4int count);
+  void ClearGPSSources();
+  void ListGPSSources() const;
+  
  private:
   G4ParticleGun* fParticleGun;
   G4GeneralParticleSource* fGPS; // 使用 GPS
@@ -75,13 +93,17 @@ class CompScintSimPrimaryGeneratorAction : public G4VUserPrimaryGeneratorAction
 
   CompScintSimDetectorConstruction* fDetectorConstruction;
   
-
   G4double minX, maxX, minY, maxY, z_pos;
   std::uniform_real_distribution<> disX;
   std::uniform_real_distribution<> disY;
   std::mt19937 gen;
 
-  
+  // 存储GPS源信息的向量
+  std::vector<MyGPSSource> fGPSSources;
+
+  // 跟踪当前事件索引和总粒子数
+  G4int fCurrentEventIndex;
+  G4int fTotalParticleCount;
 };
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......

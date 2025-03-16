@@ -32,6 +32,7 @@
 
 #include "CompScintSimEventAction.hh"
 #include "CompScintSimRun.hh"
+#include "CompScintSimRunAction.hh"
 #include "CompScintSimStackingAction.hh"
 #include "G4Event.hh"
 #include "G4RunManager.hh"
@@ -48,8 +49,8 @@
 #include "config.hh"
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
-CompScintSimEventAction::CompScintSimEventAction()
-    : G4UserEventAction()
+CompScintSimEventAction::CompScintSimEventAction(CompScintSimRunAction* runAction)
+    : G4UserEventAction(), fRunAction(runAction)
 {
 }
 
@@ -98,32 +99,42 @@ void CompScintSimEventAction::EndOfEventAction(const G4Event *event)
 {
   auto analysisManager = G4AnalysisManager::Instance();
 
-  // 统计放射源的能谱
-  G4PrimaryVertex* primaryVertex = event->GetPrimaryVertex();
-  if (primaryVertex) {
-      G4PrimaryParticle* primaryParticle = primaryVertex->GetPrimary();
-      if (primaryParticle) {
-          G4double energy = primaryParticle->GetKineticEnergy();
-          
-          // 根据粒子类型选择不同的Ntuple ID
-          G4int particleID = g_id_source_spectrum_gamma; // 默认为gamma
-          // 获取粒子定义
-          const G4ParticleDefinition* particleDef = primaryParticle->GetParticleDefinition();
-          if (particleDef) {
-              if (particleDef == G4Electron::Definition() || particleDef == G4Positron::Definition()) {
-                  particleID = g_id_source_spectrum_e;
-              } else if (particleDef == G4Proton::Definition()) {
-                  particleID = g_id_source_spectrum_p;
-              } else if (particleDef == G4Gamma::Definition()) {
-                  particleID = g_id_source_spectrum_gamma;
-              }
-              // 可以根据需要添加更多粒子类型判断
-          }
+// 遍历所有 PrimaryVertex
+G4PrimaryVertex* primaryVertex = event->GetPrimaryVertex();
+while (primaryVertex) {  
+    G4PrimaryParticle* primaryParticle = primaryVertex->GetPrimary();
+    // 遍历该 vertex 下的所有 primary particle
+    while (primaryParticle) {
+        // 确保只统计初始生成的粒子
 
-          analysisManager->FillNtupleDColumn(0, particleID, energy);
-          analysisManager->AddNtupleRow(0); 
-      }
-  }
+        G4double energy = primaryParticle->GetKineticEnergy();
+        G4int particleID = g_id_source_spectrum_gamma;
+
+        const G4ParticleDefinition* particleDef = primaryParticle->GetParticleDefinition();
+        if (particleDef) {
+            if (particleDef == G4Electron::Definition() || particleDef == G4Positron::Definition()) {
+                particleID = g_id_source_spectrum_e;
+            } else if (particleDef == G4Proton::Definition()) {
+                particleID = g_id_source_spectrum_p;
+            } else if (particleDef == G4Gamma::Definition()) {
+                particleID = g_id_source_spectrum_gamma;
+            }
+        }
+
+        // 记录数据
+        analysisManager->FillNtupleDColumn(0, particleID, energy);
+        analysisManager->AddNtupleRow(0);
+
+        // 继续遍历下一个 primaryParticle
+        primaryParticle = primaryParticle->GetNext();
+    }
+
+    // 继续遍历下一个 primaryVertex
+    primaryVertex = primaryVertex->GetNext();
+}
+
+
+
 
 
     if (1) {
@@ -157,6 +168,12 @@ std::vector<G4int> id_lists = layerManager.GetCopynumbers();
         analysisManager->FillNtupleDColumn(ntupleId, 0, totalEdep);
         analysisManager->FillNtupleDColumn(ntupleId, 1, truelyPassingEng);
         analysisManager->AddNtupleRow(ntupleId);
+        
+        // 使用RunAction的累加器累积当前事件的能量数据
+        if (fRunAction) {
+            fRunAction->AddEnergyDeposit(id, totalEdep);
+            fRunAction->AddPassingEnergy(id, truelyPassingEng);
+        }
     }
 
 }

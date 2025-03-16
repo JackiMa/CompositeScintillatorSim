@@ -42,6 +42,8 @@ class CompScintSimPrimaryGeneratorAction;
 class G4UIdirectory;
 class G4UIcmdWithADoubleAndUnit;
 class G4UIcmdWithABool;
+class G4UIcmdWithAString;
+class G4UIcommand;
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 
@@ -58,6 +60,11 @@ class CompScintSimPrimaryGeneratorMessenger : public G4UImessenger
   G4UIdirectory* fGunDir;
   G4UIcmdWithADoubleAndUnit* fPolarCmd;
   G4UIcmdWithABool* fSetUseParticleGunCmd;
+  
+  // GPS源相关命令
+  G4UIcommand* fAddGPSSourceCmd;
+  G4UIcommand* fListGPSSourcesCmd;
+  G4UIcommand* fClearGPSSourcesCmd;
 };
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......

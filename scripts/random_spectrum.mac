@@ -1,0 +1,16 @@
+# 辐射场配置文件
+# R_switch = 1
+
+/run/initialize
+
+# 设置粒子源
+/gps/verbose 0
+/gps/particle ion
+
+# 设置多粒子源
+/gps/source/multiplevertex true
+/gps/number 0
+
+
+# 运行命令
+/run/beamOn 1
