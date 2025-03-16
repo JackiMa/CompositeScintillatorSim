@@ -37,7 +37,7 @@ inline G4double g_lg_na = 0.22;     // 光导数值孔径。-1表示根据前面
 inline G4double g_lg_length = 3 * cm; // 光导长度
 
 // source
-inline G4double g_source_scale = 1; // 源的尺度是scintillator投影的若干倍
+inline G4double g_source_scale = 0.95; // 源的尺度是scintillator投影的若干倍
 
 
 // data process

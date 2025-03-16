@@ -142,10 +142,10 @@ int main(int argc, char **argv)
   
   myPrint(INFO, "Starting CompScintSim application...");
   if (g_debug_mode) {
-    myPrint(INFO, "调试模式已启用 (g_debug_mode = true)，将显示所有DEBUG级别信息");
+    myPrint(DEBUG, "调试模式已启用 (g_debug_mode = true)，将显示所有DEBUG级别信息");
   } else {
-    myPrint(INFO, "当前运行在标准模式，只显示INFO和ERROR级别信息");
-    myPrint(INFO, "提示: 使用 -debug 命令行参数可启用详细调试输出");
+    myPrint(DEBUG, "当前运行在标准模式，只显示INFO和ERROR级别信息");
+    myPrint(DEBUG, "提示: 使用 -debug 命令行参数可启用详细调试输出");
   }
 
   // Instantiate G4UIExecutive if interactive mode

@@ -250,7 +250,7 @@ class RootData:
         df = pd.DataFrame(data, columns=columns)
         df.to_csv(filename, index=False)
 
-    def save_simulation_data(self, save_name = "20250310150826"):
+    def save_simulation_data(self, save_dir, save_name = None):
         """
         根据模拟时间保存特定数据到CSV文件，总共7行数据：
         - 第1-2行：电子能量和计数（只保留计数非0的能量点）
@@ -263,15 +263,14 @@ class RootData:
         simulation_time - 模拟的日期和时间，格式为YYMMDDHHMMSS
         """
         # 创建文件名
-        if save_name == "":
+        if save_name == None:
             save_name = datetime.now().strftime("%Y%m%d%H%M%S")
         
         filename = f"{save_name}.csv"
         
         # 1. 处理电子能谱数据
-        electron_energy = []
-        electron_counts = []
-        
+        electron_energy_dict = {}  # 使用字典存储能量和对应的计数
+
         if 'N_1' in self.Ntuples:
             df_spectra = self.Ntuples['N_1']
             
@@ -281,18 +280,24 @@ class RootData:
                 electron_col = electron_cols[0]
                 # 排除能量为0的粒子
                 non_zero_electrons = df_spectra[df_spectra[electron_col] > 0][electron_col]
-                if len(non_zero_electrons) > 0:
-                    # 创建能量直方图 (10keV为单位)
-                    electron_hist, electron_bins = np.histogram(non_zero_electrons, bins=np.arange(0, 10, 0.01))
-                    # 只保留计数非0的能量点
-                    non_zero_indices = electron_hist > 0
-                    electron_energy = electron_bins[:-1][non_zero_indices].tolist()
-                    electron_counts = electron_hist[non_zero_indices].tolist()
-        
+                
+                # 使用字典统计每个能量值出现的次数
+                for energy in non_zero_electrons:
+                    # 由于浮点数精度问题，可能需要进行取整或保留固定小数位
+                    # 这里保留4位小数作为键
+                    energy_key = round(energy, 4)
+                    if energy_key in electron_energy_dict:
+                        electron_energy_dict[energy_key] += 1
+                    else:
+                        electron_energy_dict[energy_key] = 1
+                
+                # 转换为排序后的列表，用于后续处理或绘图
+                electron_energy = sorted(electron_energy_dict.keys())
+                electron_counts = [electron_energy_dict[e] for e in electron_energy]
+
         # 2. 处理质子能谱数据
-        proton_energy = []
-        proton_counts = []
-        
+        proton_energy_dict = {}  # 使用字典存储能量和对应的计数
+
         if 'N_1' in self.Ntuples:
             df_spectra = self.Ntuples['N_1']
             
@@ -302,13 +307,19 @@ class RootData:
                 proton_col = proton_cols[0]
                 # 排除能量为0的粒子
                 non_zero_protons = df_spectra[df_spectra[proton_col] > 0][proton_col]
-                if len(non_zero_protons) > 0:
-                    # 创建能量直方图 (10keV为单位)
-                    proton_hist, proton_bins = np.histogram(non_zero_protons, bins=np.arange(0, 10, 0.01))
-                    # 只保留计数非0的能量点
-                    non_zero_indices = proton_hist > 0
-                    proton_energy = proton_bins[:-1][non_zero_indices].tolist()
-                    proton_counts = proton_hist[non_zero_indices].tolist()
+                
+                # 使用字典统计每个能量值出现的次数
+                for energy in non_zero_protons:
+                    # 保留4位小数作为键
+                    energy_key = round(energy, 4)
+                    if energy_key in proton_energy_dict:
+                        proton_energy_dict[energy_key] += 1
+                    else:
+                        proton_energy_dict[energy_key] = 1
+                
+                # 转换为排序后的列表，用于后续处理或绘图
+                proton_energy = sorted(proton_energy_dict.keys())
+                proton_counts = [proton_energy_dict[e] for e in proton_energy]
         
         # 3. 识别所有可能的层ID
         layer_ids = set()
@@ -322,23 +333,10 @@ class RootData:
                 if layer_match:
                     layer_id = int(layer_match.group(1))
                     layer_ids.add(layer_id)
-        
-        # 从Ntuple名称中也提取层ID
-        for ntuple_name in self.Ntuples.keys():
-            if '_' in ntuple_name:
-                parts = ntuple_name.split('_')
-                for i, part in enumerate(parts):
-                    if part.lower() == 'layer' and i+1 < len(parts):
-                        try:
-                            layer_id = int(parts[i+1])
-                            layer_ids.add(layer_id)
-                            break
-                        except ValueError:
-                            continue
+
         
         # 按层ID排序
         sorted_layer_ids = sorted(layer_ids)
-        
         # 创建层ID到Ntuple的映射
         layer_to_ntuple = {}
         for ntuple_name, df in self.Ntuples.items():
@@ -366,7 +364,8 @@ class RootData:
             
             # 如果找到了层ID，建立映射
             if layer_id is not None:
-                layer_to_ntuple[layer_id] = ntuple_name
+                # 因为获取到的id是copynumber，是从1开始的。而别的默认是从1开始，所以需要转换
+                layer_to_ntuple[layer_id - 1] = ntuple_name
         
         # 初始化数据列表
         energy_deposits = []  # 第5行
@@ -378,7 +377,8 @@ class RootData:
             # 从Ntuple中获取能量沉积数据（第5行）
             energy_deposit = 0
             if layer_id in layer_to_ntuple:
-                ntuple_name = layer_to_ntuple[layer_id]
+                print(layer_id)
+                ntuple_name = layer_to_ntuple[layer_id ] 
                 df = self.Ntuples[ntuple_name]
                 # 查找energyDeposit列
                 energy_cols = [col for col in df.columns if 'energydeposit' in col.lower()]
@@ -407,7 +407,7 @@ class RootData:
             fiber_photons.append(fiber_photon_count)
         
         # 将数据写入CSV文件
-        with open(filename, 'w', newline='') as csvfile:
+        with open(save_dir +'/'+ filename, 'w', newline='') as csvfile:
             writer = csv.writer(csvfile)
             
             # 写入电子数据
@@ -426,9 +426,9 @@ class RootData:
         print(f"模拟数据已保存至 {filename}")
         return filename
 
-    def save(self, filename):
+    def save(self, dir_name):
         # 创建文件夹
-        base_folder = os.path.splitext(filename)[0]
+        base_folder = os.path.splitext(dir_name)[0]
         figure_folder = os.path.join(base_folder, 'figure')
         data_folder = os.path.join(base_folder, 'data')
         os.makedirs(figure_folder, exist_ok=True)

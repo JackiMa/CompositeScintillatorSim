@@ -47,7 +47,7 @@
 #include "G4Positron.hh"
 #include "CustomScorer.hh"
 #include "config.hh"
-
+#include "utilities.hh"
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 CompScintSimEventAction::CompScintSimEventAction(CompScintSimRunAction* runAction)
     : G4UserEventAction(), fRunAction(runAction)
@@ -105,7 +105,7 @@ while (primaryVertex) {
     G4PrimaryParticle* primaryParticle = primaryVertex->GetPrimary();
     // 遍历该 vertex 下的所有 primary particle
     while (primaryParticle) {
-        // 确保只统计初始生成的粒子
+
 
         G4double energy = primaryParticle->GetKineticEnergy();
         G4int particleID = g_id_source_spectrum_gamma;
@@ -122,6 +122,7 @@ while (primaryVertex) {
         }
 
         // 记录数据
+        myPrint(INFO, fmt("particleID: {}, energy: {}", particleID, energy));
         analysisManager->FillNtupleDColumn(0, particleID, energy);
         analysisManager->AddNtupleRow(0);
 

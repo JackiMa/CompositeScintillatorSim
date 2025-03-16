@@ -4,7 +4,6 @@
 /control/verbose 0
 /run/verbose 0
 /tracking/verbose 0
-# 初始化探测器
 /run/initialize
 
 # 禁用默认的ParticleGun
@@ -16,16 +15,11 @@
 # 添加多个粒子源
 /gps/my_source/add e- 1.0 MeV 10
 /gps/my_source/add proton 5.0 MeV 5
-/gps/my_source/add gamma 0.511 MeV 20
+/gps/my_source/add gamma 1 MeV 20
 
 # 列出所有定义的源
 /gps/my_source/list
 
-# 生成一个事件
-/run/beamOn 1
+# 生成一个事件（单次事件释放所有粒子）
+/run/beamOn 10
 
-# 可视化设置（可选）
-#/control/execute macros/vis.mac
-
-# 运行模拟（总粒子数应该是35个）
-/run/beamOn 1

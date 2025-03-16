@@ -1,44 +1,26 @@
-# 辐射场配置文件
-# R_switch = 0
+# 自定义GPS多粒子源宏文件
 
+# 基本初始化
+/control/verbose 1
+/run/verbose 1
+/tracking/verbose 1
 /run/initialize
 
-# 设置粒子源
-/gps/verbose 0
-/gps/particle ion
+# 禁用默认的ParticleGun
+/CompScintSim/generator/useParticleGun false
 
-# 设置多粒子源
-/gps/source/multiplevertex true
-/gps/number 11
+# 清除所有已定义的GPS源
+/gps/my_source/clear
 
+# 添加多个粒子源
+/gps/my_source/add e- 1.0 MeV 2
+/gps/my_source/add e- 10.0 MeV 5
+/gps/my_source/add proton 50.0 MeV 3
+/gps/my_source/add proton 8.0 MeV 1
+/gps/my_source/add gamma 1.5 MeV 10
 
-# 源 1: 2个 1.0MeV e-
-/gps/source/add 2
-/gps/source/list
-/gps/source/set 0
-/gps/particle e-
-/gps/energy 1.0 MeV
+# 列出所有定义的源
+/gps/my_source/list
 
-# 源 2: 5个 10.0MeV e-
-/gps/source/add 5
-/gps/source/list
-/gps/source/set 1
-/gps/particle e-
-/gps/energy 10.0 MeV
-
-# 源 3: 3个 50.0MeV proton
-/gps/source/add 3
-/gps/source/list
-/gps/source/set 2
-/gps/particle proton
-/gps/energy 50.0 MeV
-
-# 源 4: 1个 8.0MeV proton
-/gps/source/add 1
-/gps/source/list
-/gps/source/set 3
-/gps/particle proton
-/gps/energy 8.0 MeV
-
-# 运行命令
-/run/beamOn 1
+# 生成事件（单次事件释放所有粒子）
+/run/beamOn 30

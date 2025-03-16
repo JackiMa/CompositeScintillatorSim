@@ -167,6 +167,7 @@ void CompScintSimPrimaryGeneratorAction::GeneratePrimaries(G4Event* anEvent)
       fGPS->GetCurrentSource()->GetAngDist()->SetParticleMomentumDirection(direction);
         
       // 为该源生成指定数量的粒子
+      G4int total_generated_particles = 0;
       for (G4int i = 0; i < source.count; i++) {
         // 在投影区域内随机抽样一个点
         G4double x = disX(gen);
@@ -193,10 +194,11 @@ void CompScintSimPrimaryGeneratorAction::GeneratePrimaries(G4Event* anEvent)
         myPrint(DEBUG, fmt("Source {} generated particle {}/{}: {} {} MeV, pos=({},{},{})", 
                           source.id, i+1, source.count, source.particleType, source.energy/MeV,
                           sourcePosition.x(), sourcePosition.y(), sourcePosition.z()));
+        total_generated_particles++;
       }
       
-      myPrint(INFO, fmt("Completed source {}: {} particles ({} particles generated)", 
-                       source.id, source.particleType, source.count));
+      myPrint(DEBUG, fmt("Completed source {}: {} particles ({} particles generated)", 
+                       source.id, source.particleType, total_generated_particles));
     }
     
     myPrint(INFO, fmt("Event {} completed: Total generated {} particles", eventID, fTotalParticleCount));
