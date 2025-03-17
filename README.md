@@ -255,16 +255,6 @@ csv_path = root_data.save_simulation_data(abs_dir_csv, csv_filename)
 2. **ROOT文件未生成**：检查日志文件了解详细错误信息
 3. **批处理脚本运行缓慢**：可以适当减少事件数量或粒子类型来提高运行速度
 
-## TODO 列表
-
-- [ ] 添加更多材料的光学特性参数
-- [ ] 实现更复杂的几何结构配置
-- [ ] 增加对能量谱分析的可视化支持
-- [ ] 优化多线程性能
-- [ ] 添加更多样本宏文件
-- [ ] 实现配置文件驱动的模拟（无需修改源代码）
-- [ ] 添加单元测试
-- [ ] 改进文档和用户指南
 
 ## 代码详细说明
 
@@ -274,19 +264,13 @@ csv_path = root_data.save_simulation_data(abs_dir_csv, csv_filename)
 
 #### 材料定义
 
-材料定义主要在`DefineMaterials()`方法中：
+材料定义主要在`MyMaterials()`类中：
 
 - **基础材料**：定义了常用材料如Air、Water、Al、Si等
 - **闪烁体材料**：定义了塑料闪烁体(BC-408/BC-412)、无机闪烁体(LYSO/BGO)等
 - **光学属性**：定义了材料的折射率、吸收长度、光产额等参数
 
-```cpp
-// 材料光学属性定义示例
-G4MaterialPropertiesTable* mptPlScin = new G4MaterialPropertiesTable();
-mptPlScin->AddProperty("RINDEX", photonEnergy, refractiveIndex, nEntries);
-mptPlScin->AddProperty("ABSLENGTH", photonEnergy, absLength, nEntries);
-mptPlScin->AddProperty("FASTCOMPONENT", photonEnergy, scintilFast, nEntries);
-```
+
 
 #### 几何体构建
 
@@ -296,13 +280,6 @@ mptPlScin->AddProperty("FASTCOMPONENT", photonEnergy, scintilFast, nEntries);
 - **闪烁体层**：创建多层复合闪烁体结构
 - **光探测器**：在闪烁体周围布置光电倍增管或SiPM
 
-```cpp
-// 创建闪烁体逻辑体积示例
-G4Box* solidScintillator = new G4Box("Scintillator", 
-                                    scintX/2, scintY/2, scintZ/2);
-G4LogicalVolume* logicScintillator = 
-    new G4LogicalVolume(solidScintillator, scintillatorMaterial, "Scintillator");
-```
 
 #### 光学表面处理
 
@@ -312,13 +289,6 @@ G4LogicalVolume* logicScintillator =
 - **反射类型**：可设置为漫反射(diffuse)、镜面反射(specular)等
 - **表面模型**：可选unified、LUT、DAVIS等模型
 
-```cpp
-// 光学表面处理示例
-G4OpticalSurface* opticalSurface = new G4OpticalSurface("Surface");
-opticalSurface->SetType(dielectric_dielectric);
-opticalSurface->SetFinish(polished);
-opticalSurface->SetModel(unified);
-```
 
 ### 初级粒子生成器详解
 
@@ -332,14 +302,6 @@ opticalSurface->SetModel(unified);
 - 粒子类型、能量、发射位置、方向可通过宏命令设置
 - 适用于单一粒子类型的模拟
 
-```cpp
-// ParticleGun模式关键代码
-G4ParticleGun* particleGun = new G4ParticleGun(1);
-particleGun->SetParticleDefinition(particle);
-particleGun->SetParticleEnergy(energy);
-particleGun->SetParticlePosition(position);
-particleGun->SetParticleMomentumDirection(momentumDirection);
-```
 
 #### GPS多粒子源模式
 
@@ -350,21 +312,7 @@ GPS(General Particle Source)提供了更复杂的粒子源配置：
 - 支持按比例生成不同粒子
 - 通过自定义命令`/gps/my_source/add`添加粒子源
 
-```cpp
-// GPS多粒子源关键实现
-void AddParticleSource(G4String particleName, G4double energy, G4int number) {
-    // 创建粒子定义
-    G4ParticleDefinition* particle = 
-        G4ParticleTable::GetParticleTable()->FindParticle(particleName);
-    
-    // 添加到源列表
-    ParticleSource source;
-    source.particle = particle;
-    source.energy = energy;
-    source.number = number;
-    fParticleSources.push_back(source);
-}
-```
+
 
 ### 事件处理详解
 
@@ -378,18 +326,6 @@ void AddParticleSource(G4String particleName, G4double energy, G4int number) {
 - **结束处理**：在`EndOfRunAction()`中分析数据、保存结果、关闭文件
 - **数据管理**：创建和管理ROOT输出文件
 
-```cpp
-// RunAction关键方法
-void CompScintSimRunAction::BeginOfRunAction(const G4Run* run) {
-    // 创建ROOT文件
-    fRootFile = new TFile(fOutputFileName, "RECREATE");
-    // 创建树结构
-    fEventTree = new TTree("Events", "Simulation Events Data");
-    // 添加分支
-    fEventTree->Branch("EventID", &fEventID, "EventID/I");
-    // ...其他分支
-}
-```
 
 #### EventAction
 
@@ -399,15 +335,6 @@ void CompScintSimRunAction::BeginOfRunAction(const G4Run* run) {
 - **事件处理**：在`EndOfEventAction()`中收集事件数据并填充到输出树中
 - **数据汇总**：收集多个步骤产生的能量沉积、光子信息等
 
-```cpp
-// EventAction关键方法
-void CompScintSimEventAction::EndOfEventAction(const G4Event* event) {
-    // 汇总事件数据
-    fRunAction->SetEventData(fEventID, fEdepTotal, fScintPhotons, fCerenPhotons);
-    // 填充事件树
-    fRunAction->FillEventTree();
-}
-```
 
 #### SteppingAction
 
@@ -417,32 +344,7 @@ void CompScintSimEventAction::EndOfEventAction(const G4Event* event) {
 - **数据收集**：收集能量沉积、产生的光子数、相互作用位置等
 - **筛选事件**：可根据特定条件筛选感兴趣的事件
 
-```cpp
-// SteppingAction关键方法
-void CompScintSimSteppingAction::UserSteppingAction(const G4Step* step) {
-    // 获取能量沉积
-    G4double edep = step->GetTotalEnergyDeposit();
-    if (edep > 0) {
-        fEventAction->AddEdep(edep);
-    }
-    
-    // 检测产生的光子
-    const G4TrackVector* secondaries = step->GetSecondary();
-    for (size_t i = 0; i < secondaries->size(); i++) {
-        G4Track* secTrack = (*secondaries)[i];
-        // 检查是否为光子
-        if (secTrack->GetDefinition() == G4OpticalPhoton::Definition()) {
-            // 识别产生过程
-            G4String processName = secTrack->GetCreatorProcess()->GetProcessName();
-            if (processName == "Scintillation") {
-                fEventAction->IncrementScintPhotons();
-            } else if (processName == "Cerenkov") {
-                fEventAction->IncrementCerenPhotons();
-            }
-        }
-    }
-}
-```
+
 
 ### 自定义命令
 
