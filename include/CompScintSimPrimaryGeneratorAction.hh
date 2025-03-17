@@ -43,6 +43,7 @@
 #include "G4ThreeVector.hh"
 #include <vector>
 #include <string>
+#include <mutex>  // 添加互斥锁的头文件
 
 class G4Event;
 class CompScintSimPrimaryGeneratorMessenger;
@@ -87,6 +88,9 @@ class CompScintSimPrimaryGeneratorAction : public G4VUserPrimaryGeneratorAction
   G4ParticleGun* fParticleGun;
   G4GeneralParticleSource* fGPS; // 使用 GPS
   bool useParticleGun; // 标记使用哪种粒子源
+
+  // 添加互斥锁以防止多线程竞态条件
+  static std::mutex fGPSMutex;
 
   CompScintSimPrimaryGeneratorMessenger* fGunMessenger;
   const CompScintSimDetectorConstruction* detector;

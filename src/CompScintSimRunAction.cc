@@ -226,12 +226,15 @@ void CompScintSimRunAction::EndOfRunAction(const G4Run* run)
   // Save histograms & ntuple
   if (isMaster) {
     // 创建包含系统时间的文件名
-    auto now = std::chrono::system_clock::now();
-    auto now_time_t = std::chrono::system_clock::to_time_t(now);
-    std::stringstream timestamp;
-    timestamp << std::put_time(std::localtime(&now_time_t), "%Y%m%d_%H%M%S");
-    std::string fileName = "run_" + std::to_string(runID) + "_" + timestamp.str() + ".csv";
-    
+    // auto now = std::chrono::system_clock::now();
+    // auto now_time_t = std::chrono::system_clock::to_time_t(now);
+    // std::stringstream timestamp;
+    // timestamp << std::put_time(std::localtime(&now_time_t), "%Y%m%d_%H%M%S");
+    // // std::string fileName = "run_" + std::to_string(runID) + "_" + timestamp.str() + ".csv";
+    // G4String fileName = getNewfileName(fSaveFileName+"_" + timestamp.str(), ".csv");
+    G4String fileName = getNewfileName(fSaveFileName, ".csv");
+
+
     static std::mutex fileMutex;
     std::lock_guard<std::mutex> lock(fileMutex); // 使用互斥锁确保线程安全
 

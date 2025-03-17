@@ -2,6 +2,7 @@
 #include "MaterialManager.hh"
 #include "config.hh"
 #include "utilities.hh"
+#include <string> // 添加string头文件
 
 // ScintillatorLayerInfo方法实现
 G4Material* ScintillatorLayerInfo::GetScintMaterial() const {
@@ -26,13 +27,39 @@ ScintillatorLayerManager::ScintillatorLayerManager()
 
 // 从CSV文件初始化
 bool ScintillatorLayerManager::Initialize(const G4String& filename) {
+    // 尝试在当前路径打开文件
     std::ifstream csvFile(filename);
+    
+    // 如果在当前路径找不到文件，尝试在上一级目录查找
     if (!csvFile.is_open()) {
-        G4ExceptionDescription ed;
-        ed << "Cannot open scintillator geometry configuration file: " << filename;
-        G4Exception("ScintillatorLayerManager::Initialize",
-                  "FileNotFound", FatalException, ed);
-        return false;
+        myPrint(DEBUG, fmt("Cannot open file at current path: {}", filename));
+        
+        // 构造上一级目录路径
+        // 从文件名中提取文件名部分（不含路径）
+        G4String baseFilename = filename;
+        size_t lastSlash = filename.find_last_of("/\\");
+        if (lastSlash != G4String::npos) {
+            baseFilename = filename.substr(lastSlash + 1);
+        }
+        
+        // 构造上一级目录路径
+        G4String parentPathFilename = "../" + baseFilename;
+        myPrint(DEBUG, fmt("Trying parent directory: {}", parentPathFilename));
+        
+        // 尝试在上一级目录打开
+        csvFile.open(parentPathFilename);
+        
+        // 如果还是打不开，报错
+        if (!csvFile.is_open()) {
+            G4ExceptionDescription ed;
+            ed << "Cannot open scintillator geometry configuration file: " << filename 
+               << " or at parent path: " << parentPathFilename;
+            G4Exception("ScintillatorLayerManager::Initialize",
+                      "FileNotFound", FatalException, ed);
+            return false;
+        }
+        
+        myPrint(INFO, fmt("Successfully opened file from parent directory: {}", parentPathFilename));
     }
     
     // 清除现有数据

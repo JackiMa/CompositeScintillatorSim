@@ -21,5 +21,5 @@
 /gps/my_source/list
 
 # 生成一个事件（单次事件释放所有粒子）
-/run/beamOn 10
+/run/beamOn 100
 

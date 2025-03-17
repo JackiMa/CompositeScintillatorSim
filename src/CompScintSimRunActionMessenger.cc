@@ -9,7 +9,6 @@ CompScintSimRunActionMessenger::CompScintSimRunActionMessenger(CompScintSimRunAc
    fRunAction(runAction)
 {
     // 定义一个命令目录，比如 /MySim/，只是为了分层管理命令
-    // 也可用 /YourProject/ 或任意你喜欢的名字
     G4UIdirectory* simDir = new G4UIdirectory("/MySim/");
     simDir->SetGuidance("Commands for my simulation");
 

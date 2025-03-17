@@ -28,7 +28,7 @@ inline G4double g_worldZ = 20 * cm;
 inline G4Material *g_world_material = MyMaterials::Vacuum();
 
 // scintillator
-inline G4String g_ScintillatorGeometry = "../Data/ScintillatorGeometry.csv";
+inline G4String g_ScintillatorGeometry = "ScintillatorGeometry.csv";
 inline G4double g_scint_layer_gap = 1 * mm;
 inline G4double g_hole_diameter_ratio = 1; // 闪烁体开孔与光纤外径的比值
 
