@@ -1,7 +1,0 @@
-copynumber,readout_face,scint_material,scint_lightyield,scint_length_mm,scint_width_mm,scint_height_mm,coating_thickness_nm,coating_material,fiber_core_diameter_um,fiber_cladding_diameter_um
-# copynumber 从1开始
-1,0,YAG_Ce,33200,19,19,2.2,300,Al,50,125
-2,1,YAG_Ce,33200,19,19,2.2,300,Al,50,125
-3,2,YAG_Ce,33200,19,19,2.2,300,Al,50,125
-4,3,YAG_Ce,33200,19,19,2.2,300,Al,50,125
-

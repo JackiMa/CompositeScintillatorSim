@@ -94,7 +94,7 @@ G4Material* MaterialManager::GetMaterial(const G4String& materialName) {
 G4Material* MaterialManager::GetScintillator(
     const G4String& materialName, 
     G4double lightYield, 
-    G4double resolutionScale, 
+    G4double attenuationLength, 
     G4double birksConstant) {
     // 确保映射已初始化
     if (!mapsInitialized) {
@@ -104,7 +104,7 @@ G4Material* MaterialManager::GetScintillator(
     // 查找闪烁体材料
     auto it = scintillatorMap.find(materialName);
     if (it != scintillatorMap.end()) {
-        return it->second(lightYield, resolutionScale, birksConstant);
+        return it->second(lightYield, attenuationLength, birksConstant);
     }
     
     // 如果不是闪烁体材料，返回nullptr

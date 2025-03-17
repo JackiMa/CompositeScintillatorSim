@@ -62,9 +62,6 @@ target_link_libraries(CompScintSim ${Geant4_LIBRARIES} )
 # relies on these scripts being in the current working directory.
 #
 set(CompScintSim_SCRIPTS
-    CompScintSim.out
-    CompScintSim.in
-    optPhoton.mac
     gui.mac
     vis.mac
   )

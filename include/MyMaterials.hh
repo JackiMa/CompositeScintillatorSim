@@ -8,90 +8,17 @@
 #include "G4Element.hh"
 #include "G4ElementTable.hh"
 #include "G4OpticalSurface.hh"
-#include <map>
-#include <functional>
-#include <vector>
 
 // !! Please check if the light yield is correct before using.
 
-/**
- * @brief 材料工厂类，提供创建和管理各种材料的能力
- * 
- * 该类提供两种方式获取材料：
- * 1. 通过静态方法直接访问特定材料（如MyMaterials::Air()）
- * 2. 通过字符串动态获取材料（如MyMaterials::GetMaterial("Air")）
- */
+
 class MyMaterials
 {
 private:
-  // 私有静态方法，用于初始化材料映射
-  static void InitializeMaterialMaps();
-  
-  // 材料名称到材料创建函数的映射
-  static std::map<G4String, std::function<G4Material*()>> materialMap;
-  static std::map<G4String, std::function<G4Material*(G4double, G4double, G4double)>> scintillatorMap;
-  
-  // 标记是否已初始化
-  static bool mapsInitialized;
 
 public:
   MyMaterials();
   ~MyMaterials();
-  
-  /**
-   * @brief 通过材料名称获取材料
-   * 
-   * @param materialName 材料名称
-   * @return G4Material* 材料指针，如果不存在则返回nullptr
-   */
-  static G4Material* GetMaterial(const G4String& materialName);
-  
-  /**
-   * @brief 通过材料名称获取闪烁体材料
-   * 
-   * @param materialName 材料名称
-   * @param lightYield 光产额
-   * @param resolutionScale 分辨率尺度
-   * @param birksConstant 伯克斯常数
-   * @return G4Material* 材料指针，如果不存在则返回nullptr
-   */
-  static G4Material* GetScintillator(
-      const G4String& materialName, 
-      G4double lightYield = 1.0, 
-      G4double resolutionScale = 1.0, 
-      G4double birksConstant = -1.0);
-  
-  /**
-   * @brief 检查是否支持指定的材料
-   * 
-   * @param materialName 材料名称
-   * @return true 支持该材料
-   * @return false 不支持该材料
-   */
-  static bool IsSupportedMaterial(const G4String& materialName);
-  
-  /**
-   * @brief 检查是否支持指定的闪烁体材料
-   * 
-   * @param materialName 材料名称
-   * @return true 支持该材料
-   * @return false 不支持该材料
-   */
-  static bool IsSupportedScintillator(const G4String& materialName);
-  
-  /**
-   * @brief 获取所有支持的材料名称列表
-   * 
-   * @return std::vector<G4String> 材料名称列表
-   */
-  static std::vector<G4String> GetSupportedMaterials();
-  
-  /**
-   * @brief 获取所有支持的闪烁体材料名称列表
-   * 
-   * @return std::vector<G4String> 闪烁体材料名称列表
-   */
-  static std::vector<G4String> GetSupportedScintillators();
 
   // new 
   static G4Material* Boron();

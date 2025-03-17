@@ -14,7 +14,7 @@
 /gps/particle proton
 /gps/ene/type Arb
 /gps/hist/type energy
-/gps/hist/file ../spectrum/proton_spectrum.txt # units in keV
+/gps/hist/file spectrum/proton_spectrum.txt # units in keV
 /gps/hist/inter Lin # linear interpolation
 /run/beamOn 1000
 # /gps/source/intensity 10 # 设置质子的抽样权重为10
@@ -25,6 +25,6 @@
 # /gps/particle e-
 # /gps/ene/type Arb
 # /gps/hist/type energy
-# /gps/hist/file ../spectrum/electron_spectrum.txt # units in keV
+# /gps/hist/file spectrum/electron_spectrum.txt # units in keV
 # /gps/hist/inter Lin
 # /gps/source/intensity 1 # 设置电子的抽样权重为1

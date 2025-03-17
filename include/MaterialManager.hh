@@ -39,14 +39,14 @@ public:
      * 
      * @param materialName 材料名称
      * @param lightYield 光产额
-     * @param resolutionScale 分辨率尺度
+     * @param attenuationLength 吸收长度
      * @param birksConstant 伯克斯常数
      * @return G4Material* 材料指针，如果不存在则返回nullptr
      */
     static G4Material* GetScintillator(
         const G4String& materialName, 
         G4double lightYield = 1.0, 
-        G4double resolutionScale = 1.0, 
+        G4double attenuationLength = 1.0, 
         G4double birksConstant = -1.0);
     
     /**

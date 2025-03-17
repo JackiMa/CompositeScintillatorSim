@@ -122,7 +122,7 @@ while (primaryVertex) {
         }
 
         // 记录数据
-        myPrint(INFO, fmt("particleID: {}, energy: {}", particleID, energy));
+        myPrint(DEBUG, fmt("particleID: {}, energy: {}", particleID, energy));
         analysisManager->FillNtupleDColumn(0, particleID, energy);
         analysisManager->AddNtupleRow(0);
 

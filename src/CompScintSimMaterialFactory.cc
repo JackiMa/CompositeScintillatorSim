@@ -56,12 +56,12 @@ static const std::map<G4String, CoatingMaterialCreator> coatingCreators = {
 G4Material* CompScintSimMaterialFactory::CreateScintillatorMaterial(
     const G4String& materialName, 
     G4double lightYield, 
-    G4double resolutionScale, 
+    G4double attenuationLength, 
     G4double birksConstant)
 {
     auto it = scintillatorCreators.find(materialName);
     if (it != scintillatorCreators.end()) {
-        return it->second(lightYield, resolutionScale, birksConstant);
+        return it->second(lightYield, attenuationLength, birksConstant);
     }
     
     // 如果找不到对应材料，抛出异常

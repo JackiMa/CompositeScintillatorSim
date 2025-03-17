@@ -14,12 +14,13 @@
 
 // g_ means global_
 
-// 光学表面
-inline G4OpticalSurface *g_surf_Teflon = MyMaterials::surf_Teflon();
 
 // switch
 inline G4bool g_has_opticalPhysics = false;  // 是否模拟光学过程
 inline G4bool g_has_cherenkov = true;       // 是否考虑切伦科夫光
+
+// 光学表面
+inline G4OpticalSurface *g_surf_Teflon = MyMaterials::surf_Teflon();
 
 // world
 inline G4double g_worldX = 20 * cm;
