@@ -1,3 +1,5 @@
+
+
 # CompositeScintillatorSim
 
 ## 项目介绍
@@ -178,58 +180,126 @@ cd ..
 # 生成事件（100次事件）
 /run/beamOn 100
 ```
-
 ### 批处理模拟
 
 项目提供了批处理脚本 `auto_python/Geant4_BatchDataProc.ipynb`，可以自动生成宏文件并运行多次模拟。批处理系统包含以下主要组件：
 
-1. **MacGenerator** - 用于生成宏文件的工具类
-2. **RootReader** - 用于处理ROOT输出文件的工具类
-3. **MySim** - 模拟配置和运行管理类
+1.  **MacGenerator** (`MacGenerator.py`) - 用于根据能谱配置生成 Geant4 宏文件的工具类。
+2.  **RootReader** (`RootReader.py`) - 用于读取和处理 Geant4 输出的 ROOT 文件的工具类 (需要 `uproot` 库)。
+3.  **MySim** (`MySim.py`) - 模拟配置和运行管理类，负责解析配置、创建能谱、调用 MacGenerator。
+4.  **Geant4_BatchDataProc.ipynb** - 主控制脚本，定义模拟配置，调用 MySim 和运行 Geant4 进程。
 
 #### 批处理工作流程
 
-1. 创建模拟配置（自定义或随机能谱）
-2. 生成对应的宏文件
-3. 调用Geant4可执行文件运行模拟
-4. 自动处理输出的ROOT文件
-5. 将结果转换为CSV格式存储
+1.  在 `Geant4_BatchDataProc.ipynb` 中定义一个或多个**配置字典 (`config`)**。
+2.  每个 `config` 字典指定模拟模式 (`mode`)、粒子参数、事件数 (`num_events`) 等。
+3.  调用 `run_batch_simulations(configs, batch_size)` 函数。
+4.  脚本内部：
+    *   对每个 `config` 和 `batch_size` 中的每一次运行：
+        *   调用 `MySim.from_config(config)` 创建模拟实例 (自动生成能谱)。
+        *   调用 `sim.write_mac_file()` 生成对应的宏文件 (自动处理文件名和路径)。
+        *   调用 `run_geant4()` 函数执行 Geant4 可执行文件，传入生成的宏文件。
+    *   自动处理 Geant4 输出 (检查成功/失败，处理 `_t0` 文件，重试)。
+    *   (可选) 自动调用 `RootReader` 处理成功的 ROOT 输出文件，将其转换为 CSV 格式存储。
 
-#### 使用自定义能谱示例
+#### 使用配置字典进行批处理
 
-```python
-# 创建能谱
-custom_spectrum = EnergySpectrum()
-custom_spectrum.add_particle("e-", 1.5, 20)  # 电子，1.5 MeV，20个
-custom_spectrum.add_particle("proton", 10.0, 5)  # 质子，10.0 MeV，5个
-
-# 创建模拟
-sim = MySim(profile="custom_sim", spectrum=custom_spectrum, num_events=200)
-
-# 写入MAC文件并运行模拟
-mac_file = sim.write_mac_file()
-run_geant4(abs_dir_geant4, mac_file, "custom_sim_log")
-```
-
-#### 使用随机能谱示例
+新版本的批处理系统**推荐使用配置字典**来定义模拟任务。以下是一些示例配置：
 
 ```python
-# 配置随机能谱参数
-config = {
-    'e_types_min': 2,      # 至少2种电子能量
-    'e_energy_min': 0.5,   # 电子能量范围0.5-3.0 MeV
-    'e_energy_max': 3.0,
-    'p_types_min': 2,
-    'p_types_max': 3,
-    'nums': 200,           # 每次模拟的事件数
-    'use_gamma': False     # 不使用gamma
+# 示例：在 Geant4_BatchDataProc.ipynb 中定义配置
+
+# 配置 1: Range Mode (自定义源 /gps/my_source/add)
+# 自动在 0.1 到 2.0 MeV (步长 0.2) 范围内生成电子能量点，
+# 每个能量点的电子数在 [5, 15] 之间随机抽取。
+# 质子类似处理。
+config_range = {
+    'mode': 'range',             # 模式: 能量范围 + 随机粒子数
+    'profile': 'electron_range_sim', # 文件名前缀 (基础)
+    'gps_mode': 'custom',        # 使用自定义 /gps/my_source/add
+    'num_events': 200,           # Geant4 /run/beamOn 次数
+
+    # 电子配置
+    'E_e': [0.1, 2.0],           # 电子能量范围 [min, max] MeV
+    'delta_E_e': 0.2,            # 电子能量步长 MeV
+    'N_e_once_min': 5,           # 每个能量点单次事件最少电子数
+    'N_e_once_max': 15,          # 每个能量点单次事件最多电子数
+
+    # 质子配置 (可选)
+    'E_p': [5.0, 10.0],
+    'delta_E_p': 1.0,
+    'N_p_once_min': 2,
+    'N_p_once_max': 8,
 }
 
-# 创建随机能谱模拟
-sim = MySim.from_random_spectrum(config, profile="random_spectrum_test")
-mac_file = sim.write_mac_file()
-run_geant4(abs_dir_geant4, mac_file, "random_sim_log")
+# 配置 2: Weighted Mode (原生 GPS /gps/source/add)
+# 使用 Geant4 原生 GPS，根据权重进行抽样。
+# 5.0 MeV 质子权重 1.0, 7.5 MeV 质子权重 2.5, ...
+# N_p_once_min 在此模式下仅用于信息打印和内部参考。
+config_weighted = {
+    'mode': 'weighted',          # 模式: 指定能量点 + 权重
+    'profile': 'proton_weighted_sim', # 文件名前缀 (基础)
+    'gps_mode': 'native',        # 使用原生 /gps/source/add
+    'num_events': 500,           # Geant4 /run/beamOn 次数
+
+    # 质子配置
+    'E_p': [5.0, 7.5, 10.0, 12.0], # 质子能量点 (MeV)
+    'weights_p': [1.0, 2.5, 3.0, 0.5], # 对应的抽样权重
+    'N_p_once_min': 100,         # (参考) *权重最小* (0.5) 的能量点对应的基础粒子数基准
+
+    # 电子配置 (可选)
+    'E_e': [0.5, 1.5],
+    'weights_e': [2.0, 1.0],
+    'N_e_once_min': 50,          # (参考) *权重最小* (1.0) 的能量点对应的基础粒子数基准
+}
+
+# 配置 3: Single Particle Mode
+config_single = {
+    'mode': 'single',
+    'profile': 'single_gamma_1MeV',
+    'gps_mode': 'custom', # 或 'native' (若为native, 需要 weight > 0)
+    'num_events': 1000,
+    'particle': 'gamma',
+    'energy': 1.0,        # MeV
+    'count': 1            # 每个事件产生1个该粒子 (用于 custom mode)
+    # 'weight': 1.0       # 如果 gps_mode 是 'native' 则需要此项
+}
+
+# 配置 4: 旧版随机能谱模式 (通过嵌套配置)
+config_random_legacy = {
+    'mode': 'random', # 使用包装器调用旧的随机生成逻辑
+    'profile': 'legacy_random_test',
+    'gps_mode': 'custom', # 或 'native'
+    'num_events': 150,
+    'random_config': { # 嵌套旧的随机生成器配置参数
+        'e_energy_min': 0.5, 'e_energy_max': 3.0, 'e_delta': 0.5,
+        'e_types_min': 2, 'e_types_max': 3,
+        'e_count_min': 10, 'e_count_max': 25,
+        'p_energy_min': 5.0, 'p_energy_max': 15.0, 'p_delta': 2.0,
+        'p_types_min': 1, 'p_types_max': 2,
+        'p_count_min': 5, 'p_count_max': 15,
+        'use_gamma': False, # 不生成伽马
+        # 'nums' is implicitly handled by top-level 'num_events'
+    }
+}
+
+# 将**所有需要模拟的配置**放入列表
+simulation_configs = [
+    config_range,
+    config_weighted,
+    config_single,
+    config_random_legacy
+]
+
+# 设置每个配置运行的次数
+runs_per_config = 5 # 例如，每个配置运行5次
+
+# 运行批量模拟
+run_batch_simulations(simulation_configs, runs_per_config)
+
 ```
+
+
 
 ## 模拟结果处理
 

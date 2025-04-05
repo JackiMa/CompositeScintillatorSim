@@ -17,7 +17,7 @@
 
 // switch
 inline G4bool g_has_opticalPhysics = false;  // 是否模拟光学过程
-inline G4bool g_has_cherenkov = true;       // 是否考虑切伦科夫光
+inline G4bool g_has_cherenkov = false;       // 是否考虑切伦科夫光
 
 // 光学表面
 inline G4OpticalSurface *g_surf_Teflon = MyMaterials::surf_Teflon();
@@ -30,11 +30,11 @@ inline G4Material *g_world_material = MyMaterials::Vacuum();
 
 // scintillator
 inline G4String g_ScintillatorGeometry = "ScintillatorGeometry.csv";
-inline G4double g_scint_layer_gap = 1 * mm;
+inline G4double g_scint_layer_gap = 0 * mm;
 inline G4double g_hole_diameter_ratio = 1; // 闪烁体开孔与光纤外径的比值
 
 // light guide
-inline G4double g_lg_na = 0.22;     // 光导数值孔径。-1表示根据前面定义的材料和实际光子能量进行计算
+inline G4double g_lg_na = 0.22;     // 光导数值孔径
 inline G4double g_lg_length = 3 * cm; // 光导长度
 
 // source

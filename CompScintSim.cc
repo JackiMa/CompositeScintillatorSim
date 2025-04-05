@@ -42,6 +42,8 @@
 //
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 
+#include <time.h>
+
 #include "CompScintSimDetectorConstruction.hh"
 #ifdef GEANT4_USE_GDML
 #include "CompScintSimGDMLDetectorConstruction.hh"
@@ -97,7 +99,8 @@ int main(int argc, char **argv)
   G4int nThreads = 0;
 #endif
 
-  G4long myseed = 345354;
+  // G4long myseed = 345354; # 固定种子
+  G4long myseed = time(0); // 随机种子
   for (G4int i = 1; i < argc; i++)
   {
     if (G4String(argv[i]) == "-debug")
