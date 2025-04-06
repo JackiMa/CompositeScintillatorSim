@@ -1,6 +1,13 @@
 import os,sys
 import time
 from MacGenerator import EnergySpectrum, MacFileGenerator
+import logging
+
+# 在import logging之后添加
+# 禁用该模块中的默认控制台输出处理器
+for handler in logging.root.handlers[:]:
+    logging.root.removeHandler(handler)
+logging.getLogger().addHandler(logging.NullHandler())
 
 current_path = os.path.abspath(os.curdir)
 # 把r'../../build' 加入到sys.path中 (确保路径正确)
@@ -89,15 +96,33 @@ class MySim:
         # Create instance
         sim_instance = cls(profile=profile, spectrum=spectrum, num_events=num_events, config=config)
 
-        # Calculate and print total particles
+        # Calculate and print total particles - INFO LEVEL for logging
         total_particles_per_event = spectrum.get_total_particles()
         total_simulated_particles = total_particles_per_event * num_events
-        print(f"配置 '{profile}':")
-        print(f"  模式: {mode}")
-        print(f"  每个事件 (event) 包含的总粒子数: {total_particles_per_event}")
-        print(f"  模拟事件数 (num_events/beamOn): {num_events}")
-        print(f"  总模拟粒子数 (total particles): {total_simulated_particles}")
-        print(f"  能谱详情:\n{spectrum}")
+
+        logging.info(f"配置 '{profile}':")
+        logging.info(f"  模式: {mode}")
+        logging.info(f"  GPS模式: {spectrum.gps_mode}") # Log the GPS mode
+
+        if spectrum.gps_mode == 'native':
+            logging.info(f"  模拟事件/采样数 (num_events/beamOn): {num_events}")
+            logging.info(f"  原生GPS模式: 总共进行 {num_events} 次粒子抽样，每次根据权重选择一个源。")
+            # Optionally calculate expected counts based on weights for logging
+            total_weight = sum(p.weight for p in spectrum.particles if p.weight and p.weight > 0)
+            if total_weight > 0:
+                logging.info("  预期粒子分布 (近似):")
+                for p in sorted(spectrum.particles, key=lambda x: (x.type, x.energy)):
+                    if p.weight and p.weight > 0:
+                         expected_count = num_events * p.weight / total_weight
+                         logging.info(f"    - {p.type} @ {p.energy} MeV: 权重 {p.weight:.2f} -> 约 {expected_count:.1f} 个")
+            else:
+                logging.warning("  原生GPS模式下未找到有效权重，无法估算分布。")
+        else: # custom mode (or others potentially)
+            logging.info(f"  每个事件 (event) 包含的总粒子数: {total_particles_per_event}")
+            logging.info(f"  模拟事件数 (num_events/beamOn): {num_events}")
+            logging.info(f"  总模拟粒子数 (total particles): {total_simulated_particles}")
+
+        logging.info(f"  能谱详情 (基于配置计算):\n{spectrum}") # Keep spectrum details in log
 
 
         return sim_instance
@@ -163,13 +188,15 @@ class MySim:
 
         # Check for existing file and rename with timestamp if needed
         if os.path.exists(dir_mac_file):
-            print(f"警告: MAC文件已存在：{dir_mac_file}")
+            # print(f"警告: MAC文件已存在：{dir_mac_file}")
+            logging.warning(f"MAC文件已存在：{dir_mac_file}") # Log as warning
             current_time = time.localtime()
             timestamp = time.strftime("%H%M%S", current_time)
             original_mac_name = mac_name
             mac_name = f"{os.path.splitext(original_mac_name)[0]}_{timestamp}.mac"
             dir_mac_file = os.path.join(dir_mac, mac_name)
-            print(f"自动重命名为：{mac_name}")
+            # print(f"自动重命名为：{mac_name}")
+            logging.warning(f"自动重命名为：{mac_name}") # Log as warning
 
         # Generate MAC file using the MacFileGenerator instance
         self.mac_generator.generate_mac_file(dir_mac_file)

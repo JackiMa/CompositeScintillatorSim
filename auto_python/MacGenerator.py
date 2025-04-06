@@ -2,7 +2,12 @@ import numpy as np
 import random
 import math # Import math for ceil
 import os
+import logging
 
+# 禁用该模块中的默认控制台输出处理器
+for handler in logging.root.handlers[:]:
+    logging.root.removeHandler(handler)
+logging.getLogger().addHandler(logging.NullHandler())
 
 # 全局变量：控制能量值保留的小数位数
 ENERGY_DECIMAL_PLACES = 2
@@ -242,16 +247,16 @@ class EnergySpectrum:
 
 
              # Calculate suggested num_events for weighted mode
-             if total_min_weight_contribution > 0 and gps_mode == 'native':
+             # if total_min_weight_contribution > 0 and gps_mode == 'native':
                  # This calculation seems complex and potentially confusing based on the user request.
                  # Let's stick to the user's formula: num_events = N_min_for_min_weight * total_energy_points / min_global_weight ?
                  # The user request is ambiguous: "N_e_once_min * length of E_e / min(weights)" - applies per particle type? globally?
                  # Let's calculate a suggestion based on ensuring the minimum weight particle appears roughly N_min_for_min_weight times *per particle type*
                  # This still doesn't give a single num_events easily.
                  # Revisit the calculation: Maybe num_events should just be set directly in config?
-
                  # Let's use the user-provided num_events or a default. The printout in MySim already shows total particles.
-                 pass # Keep num_events as set in MySim.from_config
+                 # pass # Keep num_events as set in MySim.from_config - This pass is unnecessary and can be removed
+                 # Calculation is now handled externally by calculate_native_beam_on
 
 
         elif mode == 'random':
@@ -377,6 +382,95 @@ class EnergySpectrum:
 
         # return spectrum, config['nums'] # Original
         return spectrum, num_events
+
+    @staticmethod
+    def calculate_native_beam_on(config):
+        """
+        计算原生加权模式下建议的 /run/beamOn 值，
+        基于确保最低权重的粒子达到其 N_min 计数。
+
+        参数:
+            config (dict): 模拟配置字典。
+
+        返回:
+            int: 计算出的事件数 (beamOn 值)。
+                 如果不是原生加权模式或无法计算，则返回配置中原始的 'num_events'。
+        """
+        mode = config.get('mode')
+        gps_mode = config.get('gps_mode', 'native' if mode == 'weighted' else 'custom')
+
+        if not (mode == 'weighted' and gps_mode == 'native'):
+            # 如果不是目标模式，则返回现有的 num_events
+            return config.get('num_events', 100) # 如果未指定，默认为 100
+
+        particle_configs = {
+            # particle code: (Energy key, Weights key, N_min_key)
+            'e': ('E_e', 'weights_e', 'N_e_once_min'),
+            'p': ('E_p', 'weights_p', 'N_p_once_min'),
+            'g': ('E_g', 'weights_g', 'N_g_once_min')
+        }
+
+        required_events_list = []
+
+        for p_code, (E_key, weights_key, N_min_key) in particle_configs.items():
+            # 检查该粒子类型所需的所有键是否存在于配置中
+            if E_key in config and weights_key in config and N_min_key in config:
+                weights = config[weights_key]
+                N_min_for_min_weight = config[N_min_key]
+
+                # 验证权重列表和 N_min 值
+                if not isinstance(weights, (list, tuple)) or not weights or N_min_for_min_weight <= 0:
+                    logging.warning(f"跳过 {p_code} 的 beamOn 计算：权重列表无效或 N_min_key ({N_min_key}) 无效。")
+                    continue
+
+                # 筛选出有效的正权重值
+                valid_weights = [w for w in weights if isinstance(w, (int, float)) and w > 0]
+                if not valid_weights:
+                    logging.warning(f"跳过 {p_code} 的 beamOn 计算：未找到有效的正权重。")
+                    continue
+
+                min_weight = min(valid_weights)
+                sum_weights = sum(valid_weights)
+
+                # 根据公式计算所需的事件数： N_min * sum(weights) / min(weight)
+                # 使用 math.ceil 确保向上取整，保证最低权重粒子至少达到 N_min 次
+                try:
+                     calculated_events = math.ceil(N_min_for_min_weight * sum_weights / min_weight)
+                     required_events_list.append(calculated_events)
+                     logging.debug(f"计算 {p_code}: N_min={N_min_for_min_weight}, sum_w={sum_weights}, min_w={min_weight} -> events={calculated_events}")
+                except ZeroDivisionError:
+                     logging.warning(f"跳过 {p_code} 的 beamOn 计算：最低权重为零。")
+                except Exception as e:
+                    logging.warning(f"计算 {p_code} 的 beamOn 时出错：{e}")
+
+        # 如果没有任何粒子类型能成功计算出所需事件数
+        if not required_events_list:
+             logging.warning("原生加权模式：无法从任何粒子类型计算所需的事件数。将使用配置中的 num_events。")
+             return config.get('num_events', 100) # 使用配置值或默认值作为后备
+
+        # 最终的 num_events 取所有粒子类型计算结果中的最大值
+        calculated_base_events = max(required_events_list)
+        logging.info(f"计算得到原生加权模式的基础 num_events: {calculated_base_events} (基于 N_min 和权重)")
+
+        # --- 新增：应用 scale_factor --- 
+        scale_factor = config.get('scale_factor', 1) # 从配置读取，默认为1
+        final_num_events = calculated_base_events # 默认最终值等于基础值
+
+        if isinstance(scale_factor, int) and scale_factor >= 1:
+            if scale_factor > 1:
+                # 生成 1 到 scale_factor 之间的随机整数
+                random_factor = random.uniform(1, scale_factor)
+                final_num_events = calculated_base_events * random_factor
+                final_num_events = int(final_num_events)
+                logging.info(f"应用随机缩放因子: {random_factor} (范围 [1, {scale_factor}])")
+                logging.info(f"最终计算得到的 num_events: {final_num_events}")
+            # else: 如果 scale_factor == 1, 无需操作，final_num_events 已是基础值
+        else:
+            logging.warning(f"配置中的 scale_factor ('{scale_factor}') 无效，应为 >= 1 的整数。将忽略缩放因子。")
+            # 此时 final_num_events 仍然是 calculated_base_events
+        # ------------------------------
+
+        return final_num_events
 
 
 class MacFileGenerator:
@@ -516,4 +610,4 @@ def set_energy_decimal_places(decimal_places):
     if not isinstance(decimal_places, int) or decimal_places < 0:
         raise ValueError("小数位数必须是非负整数")
     ENERGY_DECIMAL_PLACES = decimal_places
-    print(f"能量值将保留 {ENERGY_DECIMAL_PLACES} 位小数")
+    logging.info(f"能量值将保留 {ENERGY_DECIMAL_PLACES} 位小数")
