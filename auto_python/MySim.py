@@ -1,13 +1,14 @@
-import os,sys
-import time
-from MacGenerator import EnergySpectrum, MacFileGenerator
 import logging
 
-# 在import logging之后添加
 # 禁用该模块中的默认控制台输出处理器
 for handler in logging.root.handlers[:]:
     logging.root.removeHandler(handler)
 logging.getLogger().addHandler(logging.NullHandler())
+
+
+import os,sys
+import time
+from MacGenerator import EnergySpectrum, MacFileGenerator
 
 current_path = os.path.abspath(os.curdir)
 # 把r'../../build' 加入到sys.path中 (确保路径正确)

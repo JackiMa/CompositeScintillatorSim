@@ -1,13 +1,15 @@
-import numpy as np
-import random
-import math # Import math for ceil
-import os
 import logging
 
 # 禁用该模块中的默认控制台输出处理器
 for handler in logging.root.handlers[:]:
     logging.root.removeHandler(handler)
 logging.getLogger().addHandler(logging.NullHandler())
+
+
+import numpy as np
+import random
+import math # Import math for ceil
+import os
 
 # 全局变量：控制能量值保留的小数位数
 ENERGY_DECIMAL_PLACES = 2
