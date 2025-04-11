@@ -79,7 +79,7 @@ G4Run *CompScintSimRunAction::GenerateRun()
 }
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
-void CompScintSimRunAction::BeginOfRunAction(const G4Run* run)
+void CompScintSimRunAction::BeginOfRunAction(const G4Run* /* run */)
 {
   // 创建线程专用的CSV文件名
   G4int threadID = G4Threading::G4GetThreadId();
@@ -227,12 +227,4 @@ G4String CompScintSimRunAction::getNewfileName(G4String baseFileName, G4String f
   return fileName;
 }
 
-//....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
-void CompScintSimRunAction::SetSaveFileName(G4String name) { 
-  // 检查文件名是否已有.csv后缀
-  if (name.rfind(".csv") == std::string::npos || name.rfind(".csv") != name.length() - 4) {
-    name += ".csv"; // 添加.csv后缀
-  }
-  fSaveFileName = name;
-}
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......

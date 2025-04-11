@@ -179,8 +179,6 @@ void CompScintSimSteppingAction::UserSteppingAction(const G4Step *step)
     
     // 获取光子能量和波长
     G4double energy = track->GetTotalEnergy();
-    // 将能量转换为波长，并直接计算纳米值
-    G4double wavelengthNm = (1239.841939) / (energy/eV);
     
     // 计算光子方向与光纤端面方向的夹角
     G4ThreeVector photonDirection = track->GetMomentumDirection();
@@ -225,7 +223,6 @@ void CompScintSimSteppingAction::UserSteppingAction(const G4Step *step)
     
     // 检查自动获取的法线与预期方向是否几乎重合
     G4double dotProduct = fiberNormal.dot(expectedNormal);
-    G4double angle = std::acos(std::abs(dotProduct)) / deg;
     
     if (std::abs(dotProduct) < 0.99) { 
         return; 

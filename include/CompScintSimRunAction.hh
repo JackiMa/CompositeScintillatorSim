@@ -55,7 +55,13 @@ class CompScintSimRunAction : public G4UserRunAction
   void BeginOfRunAction(const G4Run*) override;
   void EndOfRunAction(const G4Run*) override;
 
-  void SetSaveFileName(G4String name) { fSaveFileName = name; }
+  void SetSaveFileName(G4String name) { 
+    // 检查文件名是否已有.csv后缀
+    if (name.rfind(".csv") == std::string::npos || name.rfind(".csv") != name.length() - 4) {
+      name += ".csv"; // 添加.csv后缀
+    }
+    fSaveFileName = name; 
+  }
   G4String GetSaveFileName() const { return fSaveFileName; }
 
   // 获取线程特定的CSV文件名
