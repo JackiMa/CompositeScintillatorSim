@@ -4,9 +4,19 @@
 #include "G4UIdirectory.hh"
 #include "G4UIcommand.hh"
 
-CompScintSimRunActionMessenger::CompScintSimRunActionMessenger(CompScintSimRunAction* runAction)
+// ------------------------------------------------------------------
+//
+/// runactionMessenger.cc
+/// \file CompScintSimRunActionMessenger.cc
+/// \brief Implementation of the CompScintSimRunActionMessenger class
+//
+// ------------------------------------------------------------------
+// 
+
+//----------------------------------------------------------------------------//
+CompScintSimRunActionMessenger::CompScintSimRunActionMessenger(CompScintSimRunAction* runAct)
  : G4UImessenger(),
-   fRunAction(runAction)
+   fRunAction(runAct)
 {
     // 定义一个命令目录，比如 /MySim/，只是为了分层管理命令
     G4UIdirectory* simDir = new G4UIdirectory("/MySim/");
@@ -19,15 +29,17 @@ CompScintSimRunActionMessenger::CompScintSimRunActionMessenger(CompScintSimRunAc
     fSetFileNameCmd->AvailableForStates(G4State_PreInit, G4State_Idle);
 }
 
+//----------------------------------------------------------------------------//
 CompScintSimRunActionMessenger::~CompScintSimRunActionMessenger()
 {
     delete fSetFileNameCmd;
     // 如果有 simDir, 需要根据实际写法决定是否要 delete
 }
 
-void CompScintSimRunActionMessenger::SetNewValue(G4UIcommand* cmd, G4String newValue)
+//----------------------------------------------------------------------------//
+void CompScintSimRunActionMessenger::SetNewValue(G4UIcommand* command, G4String newValue)
 {
-    if(cmd == fSetFileNameCmd) {
-        fRunAction->SetFileName(newValue);  // 将命令传入的值传给RunAction
+    if(command == fSetFileNameCmd) {
+        fRunAction->SetSaveFileName(newValue);
     }
 }

@@ -36,20 +36,14 @@
 
 #include "globals.hh"
 #include "G4UserRunAction.hh"
-#include "G4Accumulable.hh"
 #include <fstream>
-#include <vector>
-
-#include "G4AnalysisManager.hh"
-
-#include "CompScintSimRunActionMessenger.hh"
-
-class CompScintSimPrimaryGeneratorAction;
-class CompScintSimRun;
-
-//....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 
 class G4Run;
+class CompScintSimRun;
+class CompScintSimPrimaryGeneratorAction;
+class CompScintSimRunActionMessenger;
+
+//....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 
 class CompScintSimRunAction : public G4UserRunAction
 {
@@ -61,29 +55,24 @@ class CompScintSimRunAction : public G4UserRunAction
   void BeginOfRunAction(const G4Run*) override;
   void EndOfRunAction(const G4Run*) override;
 
-  void SetFileName(const G4String& name) { fSaveFileName = name; } // set file name
+  void SetSaveFileName(G4String name) { fSaveFileName = name; }
+  G4String GetSaveFileName() const { return fSaveFileName; }
 
-  // 添加获取能量值的方法，供EventAction使用
-  void AddEnergyDeposit(G4int layerID, G4double edep);
-  void AddPassingEnergy(G4int layerID, G4double energy);
+  // 获取线程特定的CSV文件名
+  G4String GetThreadCsvFileName() const { return fThreadCsvFileName; }
 
  private:
   CompScintSimRun* fRun;
   CompScintSimPrimaryGeneratorAction* fPrimary;
 
-  G4String fSaveFileName;  // 存放输出文件名
+  G4String fSaveFileName;       // 存放输出文件名
+  G4String fThreadCsvFileName;  // 线程特定的CSV文件名
   CompScintSimRunActionMessenger* fMessenger; // 运行动作的消息处理器 
-
-  std::ofstream outputFile;
-
-  // 添加用于存储能量数据的累加器向量
-  std::vector<G4Accumulable<G4double>> fEnergyDeposit;   // 每层的能量沉积
-  std::vector<G4Accumulable<G4double>> fPassingEnergy;   // 每层的穿透能量
 
   bool fileExists(const G4String& fileName);
   G4String getNewfileName(G4String baseFileName, G4String fileExtension);
 };
 
-
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
+
 #endif

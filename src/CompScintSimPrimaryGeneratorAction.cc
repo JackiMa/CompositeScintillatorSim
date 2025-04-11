@@ -12,7 +12,6 @@
 #include "G4VPhysicalVolume.hh"
 #include "G4LogicalVolume.hh"
 #include "G4RunManager.hh"
-#include "G4AnalysisManager.hh"
 
 #include "Randomize.hh"
 
@@ -64,7 +63,6 @@ void CompScintSimPrimaryGeneratorAction::GeneratePrimaries(G4Event *anEvent)
 {
   // 初始化投影区域（如果尚未初始化）
   G4RunManager *runManager = G4RunManager::GetRunManager();
-  auto analysisManager = G4AnalysisManager::Instance();
   detector = dynamic_cast<const CompScintSimDetectorConstruction *>(runManager->GetUserDetectorConstruction());
   if (!detector)
   {
@@ -83,8 +81,6 @@ void CompScintSimPrimaryGeneratorAction::GeneratePrimaries(G4Event *anEvent)
     G4double x = disX(gen);
     G4double y = disY(gen);
 
-    // 将抽样得到的放射源位置XY填入到H2中
-    analysisManager->FillH2(0, x, y);
 
     MyPhysicalVolume *p_shield = detector->GetMyVolume("scint_layer_1");
     G4Box *shield_box = dynamic_cast<G4Box *>(p_shield->GetLogicalVolume()->GetSolid());
@@ -110,9 +106,6 @@ void CompScintSimPrimaryGeneratorAction::GeneratePrimaries(G4Event *anEvent)
       // 在投影区域内随机抽样一个点
       G4double x = disX(gen);
       G4double y = disY(gen);
-
-      // 将抽样得到的放射源位置XY填入到H2中
-      analysisManager->FillH2(0, x, y);
 
       MyPhysicalVolume *p_shield = detector->GetMyVolume("scint_layer_1");
       G4Box *shield_box = dynamic_cast<G4Box *>(p_shield->GetLogicalVolume()->GetSolid());
@@ -177,8 +170,6 @@ void CompScintSimPrimaryGeneratorAction::GeneratePrimaries(G4Event *anEvent)
         G4double x = disX(gen);
         G4double y = disY(gen);
 
-        // 将抽样得到的放射源位置XY填入到H2中
-        analysisManager->FillH2(0, x, y);
 
         G4ThreeVector sourcePosition(x, y, z_pos);
 

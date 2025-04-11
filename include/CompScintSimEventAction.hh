@@ -34,10 +34,9 @@
 #define CompScintSimEventAction_h 1
 
 #include "G4UserEventAction.hh"
-#include "G4THitsMap.hh"
 #include "globals.hh"
-
 #include <set>
+#include <vector>
 
 class CompScintSimRunAction;
 
@@ -46,32 +45,26 @@ class CompScintSimRunAction;
 class CompScintSimEventAction : public G4UserEventAction
 {
  public:
-  CompScintSimEventAction(CompScintSimRunAction* runAction = nullptr);
-  ~CompScintSimEventAction();
+  CompScintSimEventAction(CompScintSimRunAction* runAction);
+  ~CompScintSimEventAction() override;
 
-  void BeginOfEventAction(const G4Event*) override;
-  void EndOfEventAction(const G4Event*) override;
+  void BeginOfEventAction(const G4Event* event) override;
+  void EndOfEventAction(const G4Event* event) override;
   
-  // methods
-  G4THitsMap<G4double>* GetHitsCollection(G4int hcID,
-                                          const G4Event* event) const;
-  G4double GetSum(G4THitsMap<G4double>* hitsMap) const;
-  void PrintEventStatistics(G4double absoEdep) const;
-
+  // 添加能量沉积方法，供SteppingAction使用
+  void AddEnergyDeposit(G4int copyNumber, G4double edep);
+  
   // 用于考虑光子是否穿过数值孔径，记录trackID，避免重复统计
   std::set<G4int> processedTrackIDs;
 
-  // data members
-  G4int fAbsoEdepHCID = -1;
-  G4int fTotalEnergyHCID = -1;
-  G4int fHEPhotonHCID = -1;
-  G4int fNeutEdepHCID = -1;
-
-  G4int fEdepInCrystal = -1;
-  G4int fEngPassingSD1 = -1;
-
  private:
-  CompScintSimRunAction* fRunAction; // RunAction引用，用于访问累加器
+  CompScintSimRunAction* fRunAction = nullptr;
+  
+  // 存储各层能量沉积
+  std::vector<G4double> fEnergyDeposit;
+  
+  // 存储层copynumber
+  std::vector<G4int> fLayerCopynumbers;
 };
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 #endif

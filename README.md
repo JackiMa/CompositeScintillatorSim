@@ -1,5 +1,3 @@
-
-
 # CompositeScintillatorSim
 
 ## 项目介绍
@@ -452,4 +450,28 @@ physicsList->ReplacePhysics(new G4EmStandardPhysics_option4());
 G4OpticalPhysics* opticalPhysics = new G4OpticalPhysics();
 physicsList->RegisterPhysics(opticalPhysics);
 ```
+
+# 更新日志
+
+## 2024-04-09 数据存储方式优化
+
+- **改进数据存储机制**:
+  - 替换了基于AnalysisManager的存储方式为直接CSV文件输出
+  - 每个事件的数据直接写入CSV文件，格式更简洁
+  - 第一行为各闪烁体层的copynumber，后续每行为一个事件在各层的能量沉积
+  
+- **多线程处理优化**:
+  - 各线程独立维护自己的CSV文件
+  - 在所有线程运行结束后，由主线程合并所有临时CSV文件
+  - 合并完成后自动删除临时文件
+
+- **使用便利性提升**:
+  - 默认输出文件名为default.csv
+  - 自动添加.csv文件扩展名，用户无需手动输入
+  - 文件已存在时自动重命名(添加序号)，避免覆盖
+
+- **代码清理**:
+  - 删除了所有不必要的分析管理器代码
+  - 删除了不再使用的scorer功能代码
+  - 简化了能量采集逻辑，直接在SteppingAction中采集
 

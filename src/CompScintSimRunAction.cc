@@ -40,14 +40,7 @@
 #include <mutex>
 #include "G4UnitsTable.hh"
 #include "G4SystemOfUnits.hh"
-
-#include "G4AnalysisManager.hh"
-#include "G4AccumulableManager.hh"
-#include "G4SDManager.hh"
-
-// 添加ROOT头文件
-#include "tools/wroot/file"
-#include "tools/wroot/directory"
+#include "G4Threading.hh"
 
 #include "CompScintSimRunActionMessenger.hh"
 
@@ -61,85 +54,21 @@
 CompScintSimRunAction::CompScintSimRunAction(CompScintSimPrimaryGeneratorAction *prim)
     : G4UserRunAction(), fRun(nullptr), fPrimary(prim)
 {
-
   // 创建Messenger
   fMessenger = new CompScintSimRunActionMessenger(this);
-  fSaveFileName = "CompScintSim"; // 默认文件名
+  fSaveFileName = "default.csv"; // 默认文件名，带后缀
 
-  auto analysisManager = G4AnalysisManager::Instance();
-  analysisManager->SetVerboseLevel(1);
-  analysisManager->SetNtupleMerging(true);
-
-  // 创建公共ntuple
-  analysisManager->CreateNtuple("SourceSpectrum", "Source Spectrum");
-  analysisManager->CreateNtupleDColumn("electron"); // id = 0
-  analysisManager->CreateNtupleDColumn("proton"); // id = 1
-  analysisManager->CreateNtupleDColumn("gamma"); // id = 2
-  analysisManager->FinishNtuple();
-
-  // 获取层信息并初始化累加器向量
+  // 初始化闪烁体层管理器
   ScintillatorLayerManager& layerManager = ScintillatorLayerManager::GetInstance();
   if (!layerManager.IsInitialized())
   {
     layerManager.Initialize(g_ScintillatorGeometry);
   }
-  std::vector<G4int> id_lists = layerManager.GetCopynumbers();
-  
-  // 初始化累加器向量
-  // 注意：这里假设copynumbers是连续的，如果不连续，需要调整逻辑
-  G4int maxCopyNo = 0;
-  for (const auto& id : id_lists) {
-    if (id > maxCopyNo) maxCopyNo = id;
-  }
-  
-  // 初始化累加器向量大小为maxCopyNo+1（因为copynumber从0开始）
-  fEnergyDeposit.resize(maxCopyNo + 1, G4Accumulable<G4double>(0.));
-  fPassingEnergy.resize(maxCopyNo + 1, G4Accumulable<G4double>(0.));
-  
-  // 为每一层创建Ntuple和直方图
-  for (const auto& id : id_lists)
-  {
-    // 为每一层创建Ntuple和直方图，使用简单的命名，不包含斜杠
-    G4String layerPrefix = "Layer_" + std::to_string(id) + "_";
-    
-    // 创建能量ntuple
-    G4String ntupleName = layerPrefix + "Energy";
-    G4String ntupleTitle = "Energy deposit and passing in layer " + std::to_string(id);
-    analysisManager->CreateNtuple(ntupleName, ntupleTitle);
-    analysisManager->CreateNtupleDColumn("energyDeposit"); // 在当前层沉积的能量
-    analysisManager->CreateNtupleDColumn("TruelyPassingEnergy"); // 穿过当前层的总能谱(Truely, 不包括多次穿越的重复统计)
-    analysisManager->FinishNtuple();
-
-    // 创建光子直方图
-    analysisManager->CreateH1(layerPrefix + "Scint", "Scint Wavelength in Crystal", 600, 200.0, 800.0);
-    analysisManager->CreateH1(layerPrefix + "Chrnkv", "CherenkovLight Wavelength in Crystal", 600, 200.0, 800.0);
-    analysisManager->CreateH1(layerPrefix + "FiberNA", "Wavelength of Light Entering Fiber Numerical Aperture", 600, 200.0, 800.0);
-    analysisManager->CreateH1(layerPrefix + "FiberEntry", "Wavelength of Light Entering Fiber", 600, 200.0, 800.0);
-  }
-
-  // SourcePosition直方图保持不变
-  analysisManager->CreateH2("SourcePosition", "Source Position", 200, -0.5 * g_worldX, 0.5 * g_worldX, 200, -0.5 * g_worldY, 0.5 * g_worldY);
 }
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 CompScintSimRunAction::~CompScintSimRunAction() {
   delete fMessenger;
-}
-
-//....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
-// 添加能量沉积累加方法
-void CompScintSimRunAction::AddEnergyDeposit(G4int layerID, G4double edep) {
-  if (layerID >= 0 && layerID < (G4int)fEnergyDeposit.size()) {
-    fEnergyDeposit[layerID] += edep;
-  }
-}
-
-//....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
-// 添加穿透能量累加方法
-void CompScintSimRunAction::AddPassingEnergy(G4int layerID, G4double energy) {
-  if (layerID >= 0 && layerID < (G4int)fPassingEnergy.size()) {
-    fPassingEnergy[layerID] += energy;
-  }
 }
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
@@ -150,25 +79,33 @@ G4Run *CompScintSimRunAction::GenerateRun()
 }
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
-void CompScintSimRunAction::BeginOfRunAction(const G4Run *)
+void CompScintSimRunAction::BeginOfRunAction(const G4Run* run)
 {
-  // 注册所有累加器
-  G4AccumulableManager* accumulableManager = G4AccumulableManager::Instance();
-  // 需要单独注册每个累加器
-  for (size_t i = 0; i < fEnergyDeposit.size(); i++) {
-    accumulableManager->RegisterAccumulable(fEnergyDeposit[i]);
-    accumulableManager->RegisterAccumulable(fPassingEnergy[i]);
+  // 创建线程专用的CSV文件名
+  G4int threadID = G4Threading::G4GetThreadId();
+  std::stringstream csvFilename;
+  csvFilename << "thread" << threadID << "_" << fSaveFileName;
+  fThreadCsvFileName = csvFilename.str();
+  
+  // 获取层信息
+  ScintillatorLayerManager& layerManager = ScintillatorLayerManager::GetInstance();
+  std::vector<G4int> copynumbers = layerManager.GetCopynumbers();
+  
+  // 为每个线程创建CSV文件并写入表头
+  std::ofstream outFile(fThreadCsvFileName, std::ios::out);
+  
+  // 写入CSV表头（copynumber列表）
+  for (size_t i = 0; i < copynumbers.size(); i++) {
+    outFile << copynumbers[i];
+    if (i < copynumbers.size() - 1) {
+      outFile << ",";
+    }
   }
+  outFile << "\n";
+  outFile.close();
   
-  // 重置所有累加器
-  accumulableManager->Reset();
-  
-  // 设置初始值
-  for (size_t i = 0; i < fEnergyDeposit.size(); i++) {
-    fEnergyDeposit[i] = 0.;
-    fPassingEnergy[i] = 0.;
-  }
-  
+  G4cout << "Thread " << threadID << " created CSV file: " << fThreadCsvFileName << G4endl;
+
   if (fPrimary)
   {
     G4double energy;
@@ -188,121 +125,68 @@ void CompScintSimRunAction::BeginOfRunAction(const G4Run *)
 
     fRun->SetPrimary(particle, energy);
   }
-
-  // Open an output file
-  //
-  auto analysisManager = G4AnalysisManager::Instance();
-  
-  G4String fileName = getNewfileName(fSaveFileName, ".root");
-  
-  // 在打开文件前设置目录名称
-  analysisManager->SetHistoDirectoryName("histograms");
-  analysisManager->SetNtupleDirectoryName("ntuples");
-  
-  if (!analysisManager->OpenFile(fileName))
-  {
-    G4cerr << "Error: could not open file " << fileName << G4endl;
-  }
-  else
-  {
-    G4cout << "Successfully opened file " << fileName << G4endl;
-  }
-  G4cout << "Using " << analysisManager->GetType() << G4endl;
 }
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 void CompScintSimRunAction::EndOfRunAction(const G4Run* run)
 {
   G4int runID = run->GetRunID();
-  G4cout << "Run " << runID << " ended." << G4endl;
-
-  // 合并所有线程的累加器
-  G4AccumulableManager* accumulableManager = G4AccumulableManager::Instance();
-  accumulableManager->Merge();
-
-  // Get analysis manager
-  auto analysisManager = G4AnalysisManager::Instance();
-
-  // Save histograms & ntuple
-  if (isMaster) {
-    // 创建包含系统时间的文件名
-    // auto now = std::chrono::system_clock::now();
-    // auto now_time_t = std::chrono::system_clock::to_time_t(now);
-    // std::stringstream timestamp;
-    // timestamp << std::put_time(std::localtime(&now_time_t), "%Y%m%d_%H%M%S");
-    // // std::string fileName = "run_" + std::to_string(runID) + "_" + timestamp.str() + ".csv";
-    // G4String fileName = getNewfileName(fSaveFileName+"_" + timestamp.str(), ".csv");
-    G4String fileName = getNewfileName(fSaveFileName, ".csv");
-
-
-    static std::mutex fileMutex;
-    std::lock_guard<std::mutex> lock(fileMutex); // 使用互斥锁确保线程安全
-
-    std::ofstream outFile(fileName, std::ios::out); // 创建新文件
-
-    // 写入CSV表头
-    outFile << "CopyNumber,"
-            << "EnergyDeposit(MeV),"
-            << "PassingEnergy(MeV),"
-            << "ScintPhotonCount,"
-            << "CherenkovPhotonCount,"
-            << "FiberNAPhotonCount,"
-            << "FiberEntryPhotonCount,"
-            << "NACollectionRatio,"
-            << "FiberEntryRatio\n";
-
-    // 获取所有层的copynumber
-    ScintillatorLayerManager& layerManager = ScintillatorLayerManager::GetInstance();
-    const std::vector<G4int>& copynumbers = layerManager.GetCopynumbers();
-    
-    // 遍历每一层，输出详细信息
-    for (size_t i = 0; i < copynumbers.size(); i++) {
-      G4int copyNo = copynumbers[i];
-      
-      // 使用累加器获取能量数据
-      G4double energyDeposit = fEnergyDeposit[copyNo].GetValue();
-      G4double passingEnergy = fPassingEnergy[copyNo].GetValue();
-      
-      // 获取该层的光子统计信息
-      G4String layerPrefix = "Layer_" + std::to_string(copyNo) + "_";
-      G4int scintHistoId = analysisManager->GetH1Id(layerPrefix + "Scint");
-      G4int cherenkovHistoId = analysisManager->GetH1Id(layerPrefix + "Chrnkv");
-      G4int fiberNAHistoId = analysisManager->GetH1Id(layerPrefix + "FiberNA");
-      G4int fiberEntryHistoId = analysisManager->GetH1Id(layerPrefix + "FiberEntry");
-      
-      // 获取计数
-      G4int scintillationPhotonCount = analysisManager->GetH1(scintHistoId)->entries();
-      G4int cherenkovPhotonCount = analysisManager->GetH1(cherenkovHistoId)->entries();
-      G4int fiberNAPhotonCount = analysisManager->GetH1(fiberNAHistoId)->entries();
-      G4int fiberEntryPhotonCount = analysisManager->GetH1(fiberEntryHistoId)->entries();
-      
-      // 计算比例
-      G4double totalPhotons = scintillationPhotonCount + cherenkovPhotonCount;
-      G4double naRatio = (totalPhotons > 0) ? (G4double)fiberNAPhotonCount / totalPhotons : 0.0;
-      G4double entryRatio = (totalPhotons > 0) ? (G4double)fiberEntryPhotonCount / totalPhotons : 0.0;
-      
-      // 写入该层的数据
-      outFile << copyNo << ","
-              << energyDeposit / MeV << "," // 转换为MeV
-              << passingEnergy / MeV << ","
-              << scintillationPhotonCount << ","
-              << cherenkovPhotonCount << ","
-              << fiberNAPhotonCount << ","
-              << fiberEntryPhotonCount << ","
-              << naRatio << ","
-              << entryRatio << "\n";
-    }
-
-    // 关闭文件
-    outFile.close();
-    
-    G4cout << "Simulation results written to CSV file: " << fileName << G4endl;
-  }
+  G4int threadID = G4Threading::G4GetThreadId();
   
-  analysisManager->Write();
-  analysisManager->CloseFile();
+  G4cout << "Run " << runID << " ended on thread " << threadID << G4endl;
 
-  G4cout << "Data written to CSV file and analysis file closed." << G4endl;
+  // 主线程负责合并所有线程的CSV文件
+  if (isMaster) {
+    G4String finalCsvFileName = getNewfileName(fSaveFileName, "");
+    
+    // 获取层信息，用于写入合并后文件的表头
+    ScintillatorLayerManager& layerManager = ScintillatorLayerManager::GetInstance();
+    std::vector<G4int> copynumbers = layerManager.GetCopynumbers();
+    
+    // 创建最终的CSV文件并写入表头
+    std::ofstream finalFile(finalCsvFileName, std::ios::out);
+    for (size_t i = 0; i < copynumbers.size(); i++) {
+      finalFile << copynumbers[i];
+      if (i < copynumbers.size() - 1) {
+        finalFile << ",";
+      }
+    }
+    finalFile << "\n";
+    
+    // 合并所有线程的CSV文件，包括主线程(ID=-1)
+    // 注意：GetNumberOfRunningWorkerThreads()不包括主线程
+    G4int maxThread = G4Threading::GetNumberOfRunningWorkerThreads();
+    for (G4int tid = -1; tid < maxThread; tid++) {
+      std::stringstream threadCsvFileName;
+      threadCsvFileName << "thread" << tid << "_" << fSaveFileName;
+      
+      std::ifstream threadFile(threadCsvFileName.str());
+      if (!threadFile.is_open()) {
+        if (tid != -1) { // 如果不是主线程，则输出警告信息
+          G4cout << "Warning: Could not open thread file " << threadCsvFileName.str() << G4endl;
+        }
+        continue;
+      }
+      
+      // 跳过表头
+      std::string header;
+      std::getline(threadFile, header);
+      
+      // 复制所有数据行到最终文件
+      std::string line;
+      while (std::getline(threadFile, line)) {
+        finalFile << line << "\n";
+      }
+      
+      threadFile.close();
+      
+      // 删除线程临时文件
+      std::remove(threadCsvFileName.str().c_str());
+    }
+    
+    finalFile.close();
+    G4cout << "All thread data merged into final CSV file: " << finalCsvFileName << G4endl;
+  }
 }
 
 bool CompScintSimRunAction::fileExists(const G4String &fileName)
@@ -313,11 +197,9 @@ bool CompScintSimRunAction::fileExists(const G4String &fileName)
 
 G4String CompScintSimRunAction::getNewfileName(G4String baseFileName, G4String fileExtension)
 {
-  // 如果 baseFileName 包含扩展名，则先去掉扩展名
-  size_t pos = baseFileName.rfind(fileExtension);
-  if (pos != std::string::npos && pos == baseFileName.length() - fileExtension.length())
-  {
-    baseFileName = baseFileName.substr(0, pos);
+  // 如果baseFileName已经包含了扩展名，则不添加扩展名
+  if (fileExtension.empty()) {
+    fileExtension = "";
   }
 
   G4String fileName;
@@ -329,13 +211,28 @@ G4String CompScintSimRunAction::getNewfileName(G4String baseFileName, G4String f
     ss << baseFileName;
     if (fileIndex > 0)
     {
-      ss << "(" << fileIndex << ")";
+      size_t extPos = baseFileName.rfind(".");
+      if (extPos != std::string::npos) {
+        // 在扩展名前插入索引
+        ss.str("");
+        ss << baseFileName.substr(0, extPos) << "(" << fileIndex << ")" << baseFileName.substr(extPos);
+      } else {
+        ss << "(" << fileIndex << ")" << fileExtension;
+      }
     }
-    ss << fileExtension;
     fileName = ss.str();
     fileIndex++;
   } while (fileExists(fileName));
 
   return fileName;
+}
+
+//....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
+void CompScintSimRunAction::SetSaveFileName(G4String name) { 
+  // 检查文件名是否已有.csv后缀
+  if (name.rfind(".csv") == std::string::npos || name.rfind(".csv") != name.length() - 4) {
+    name += ".csv"; // 添加.csv后缀
+  }
+  fSaveFileName = name;
 }
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
